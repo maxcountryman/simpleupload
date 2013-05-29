@@ -3,6 +3,7 @@
             [clojure.data.codec.base64 :as b64]
             [clojure.java.io :as io]
             [clojure.string :refer [split]]
+            [clojure.tools.logging :as logging]
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
             [ring.util.response :refer [response]]))
 
@@ -46,7 +47,7 @@
   location, splits the filename into a name, extension pair. A random string is
   generate and interposed betwee the original filename and extension.
   "
-  [{:keys [filename]}]
+  [upload-dir {:keys [filename]}]
   (if (.exists (io/file upload-dir filename))
     (let [split-filename (split filename #"\.(?=[^.]*$)")]
       (str (split-filename 0) "-" (rand-str) "." (split-filename 1))))
@@ -54,12 +55,13 @@
 
 
 (defn- handle-mail
-  [req]
-  (let [user (decode-address (get-in req [:multipart-params "recipient"]))
+  [{:keys [multipart-params]}]
+  (logging/info req)
+  (let [user (decode-address (get-in multipart-params "recipient"))
         www-dir (io/file (format WWW-DIR-FMT user))
         upload-dir (io/file www-dir "uploads")
         temp-not-nil? (comp not nil? :tempfile)
-        files (filter temp-not-nil? (vals (:multipart-params req)))]
+        files (filter temp-not-nil? (vals multipart-params))]
     ;; Ensure that the `www-dir` exists before we proceed.
     ;;
     ;; We want to ignore uploads where the dir is not already preexisting as
@@ -72,7 +74,7 @@
         (.mkdir upload-dir))
       (doseq [file files]
         (io/copy (:tempfile file)
-                 (io/file upload-dir (safe-filename file)))))
+                 (io/file upload-dir (safe-filename upload-dir file)))))
     (response "")))
 
 
