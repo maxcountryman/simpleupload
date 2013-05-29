@@ -36,9 +36,10 @@
 
 
 (defn- decode-address
-  [#^String a & {:keys [k] :or {k KEY}}]
+  ([#^String a] (decode-address [a KEY]))
+  ([#^String a k]
   (let [c ((split a #"\@") 0)]
-    (apply str (decode-ciphertext c k))))
+    (apply str (decode-ciphertext c k)))))
 
 
 (defn- safe-filename
@@ -57,7 +58,7 @@
 (defn- handle-mail
   [{:keys [multipart-params] :as req}]
   (logging/info req)
-  (let [user (decode-address (get-in multipart-params "recipient"))
+  (let [user (decode-address (get multipart-params "recipient"))
         www-dir (io/file (format WWW-DIR-FMT user))
         upload-dir (io/file www-dir "uploads")
         temp-not-nil? (comp not nil? :tempfile)
