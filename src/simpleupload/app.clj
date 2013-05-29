@@ -55,7 +55,7 @@
 
 
 (defn- handle-mail
-  [{:keys [multipart-params]}]
+  [{:keys [multipart-params] :as req}]
   (logging/info req)
   (let [user (decode-address (get-in multipart-params "recipient"))
         www-dir (io/file (format WWW-DIR-FMT user))
