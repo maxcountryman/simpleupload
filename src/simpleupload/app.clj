@@ -36,7 +36,7 @@
 
 
 (defn- decode-address
-  ([#^String a] (decode-address [a KEY]))
+  ([#^String a] (decode-address a KEY))
   ([#^String a k]
   (let [c ((split a #"\@") 0)]
     (apply str (decode-ciphertext c k)))))
