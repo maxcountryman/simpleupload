@@ -7,7 +7,8 @@
                  [ring/ring-core "1.1.6"]
                  [ring/ring-jetty-adapter "1.1.6"]
                  [org.clojure/clojure "1.4.0"]
-                 [org.clojure/data.codec "0.1.0"]]
+                 [org.clojure/data.codec "0.1.0"]
+                 [org.clojure/tools.logging "0.2.3"]]
   :plugins [[lein-ring "0.8.3"]]
   :ring {:handler simpleupload.app/create-app
          :adapter {:port 8080}})
