@@ -8,35 +8,40 @@
 
 
 (def KEY "foo")
-(def WWW-DIR-FMT "/Users/%s/Desktop")
+(def ALPHANUM (map char (mapcat (partial apply range)
+                                ['(48 58) '(65 91) '(97 123)])))
+(def WWW-DIR-FMT "/home/%s/www")
 (def UPLOAD-DIR "uploads")
 
 
 (defn- xor-cipher
-  [p k]
+  [#^String p #^String k]
   (map #(char (bit-xor (int %1) (int %2))) p (cycle k)))
 
 
 (defn- encode-ciphertext
-  [c]
+  [#^String c]
   (String. (b64/encode (.getBytes (apply str c)))))
 
 
 (defn- decode-ciphertext
-  [c k]
+  [#^String c #^String k]
   (xor-cipher (map char (b64/decode (.getBytes c))) k))
 
 
 (defn- decode-address
-  [a & {:keys [k] :or {k KEY}}]
+  [#^String a & {:keys [k] :or {k KEY}}]
   (let [c ((split a #"\@") 0)]
     (apply str (decode-ciphertext c k))))
 
 
-(defn- format-filename
-  [file]
-  (let [filename (:filename file)]
-    filename))
+(defn- safe-filename
+  [{:keys [filename]}]
+  (let [split-filename (split filename #"\.")
+        ext (split-filename 1)
+        old-name (split-filename 0)
+        rand-str (apply str (take 6 (repeatedly #(rand-nth ALPHANUM))))]
+    (str old-name "-" rand-str "." ext)))
 
 
 (defn- handle-mail
@@ -44,19 +49,25 @@
   (let [user (decode-address (get-in req [:multipart-params "recipient"]))
         www-dir (io/file (format WWW-DIR-FMT user))
         upload-dir (io/file www-dir "uploads")
-        files (filter #(not (nil? (:tempfile %)))
-                      (vals (:multipart-params req)))]
-    (when (.exists www-dir)  ;; make sure the dir exists
+        temp-not-nil (comp not nil? :tempfile)
+        files (filter temp-not-nil (vals (:multipart-params req)))]
+    ;; Ensure that the `www-dir` exists before we proceed.
+    ;;
+    ;; We want to ignore uploads where the dir is not already preexisting as
+    ;; this indicates a given user either doesn't exist or hasn't created a www
+    ;; dir. In either case, we shouldn't be attempting any uploads.
+    (when (.exists www-dir)
+      ;; However if `www-dir` does exists, but the `upload-dir` doesn't, we
+      ;; should go ahead and create it.
       (when-not (.exists upload-dir)
-        (.mkdir upload-dir))  ;; mkdir if not exists
+        (.mkdir upload-dir))
       (doseq [file files]
         (io/copy (:tempfile file)
-                 (io/file upload-dir (format-filename file)))))
-  (response "")))
+                 (io/file upload-dir (safe-filename file)))))
+    (response "")))
 
 
-(defroute mail-receive "/mail/receive" [:post]
-  handle-mail)
+(defroute mail-receive "/mail/receive" [:post] handle-mail)
 
 
 (def create-app
