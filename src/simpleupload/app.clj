@@ -14,6 +14,11 @@
 (def UPLOAD-DIR "uploads")
 
 
+(defn- rand-str
+  ([] (rand-str 6))
+  ([n] (apply str (take n (repeatedly #(rand-nth ALPHANUM))))))
+
+
 (defn- xor-cipher
   [#^String p #^String k]
   (map #(char (bit-xor (int %1) (int %2))) p (cycle k)))
@@ -36,12 +41,16 @@
 
 
 (defn- safe-filename
+  "
+  Takes a `filename` and if an exactly-named file already exists at the upload
+  location, splits the filename into a name, extension pair. A random string is
+  generate and interposed betwee the original filename and extension.
+  "
   [{:keys [filename]}]
-  (let [split-filename (split filename #"\.")
-        ext (split-filename 1)
-        old-name (split-filename 0)
-        rand-str (apply str (take 6 (repeatedly #(rand-nth ALPHANUM))))]
-    (str old-name "-" rand-str "." ext)))
+  (if (.exists (io/file upload-dir filename))
+    (let [split-filename (split filename #"\.(?=[^.]*$)")]
+      (str (split-filename 0) "-" (rand-str) "." (split-filename 1))))
+  filename)
 
 
 (defn- handle-mail
@@ -49,8 +58,8 @@
   (let [user (decode-address (get-in req [:multipart-params "recipient"]))
         www-dir (io/file (format WWW-DIR-FMT user))
         upload-dir (io/file www-dir "uploads")
-        temp-not-nil (comp not nil? :tempfile)
-        files (filter temp-not-nil (vals (:multipart-params req)))]
+        temp-not-nil? (comp not nil? :tempfile)
+        files (filter temp-not-nil? (vals (:multipart-params req)))]
     ;; Ensure that the `www-dir` exists before we proceed.
     ;;
     ;; We want to ignore uploads where the dir is not already preexisting as
