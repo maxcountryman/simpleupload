@@ -51,8 +51,8 @@
   [upload-dir {:keys [filename]}]
   (if (.exists (io/file upload-dir filename))
     (let [split-filename (split filename #"\.(?=[^.]*$)")]
-      (str (split-filename 0) "-" (rand-str) "." (split-filename 1))))
-  filename)
+      (str (split-filename 0) "-" (rand-str) "." (split-filename 1)))
+    filename))
 
 
 (defn- handle-mail
